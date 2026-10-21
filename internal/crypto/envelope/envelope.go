@@ -8,7 +8,11 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hkdf"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +26,12 @@ const (
 	keySize        = 32
 	nonceSize      = 12
 	overhead       = 1 + nonceSize + 16
+
+	// Rótulos HKDF (NIST SP 800-56C): a DEK nunca é usada direto; cada
+	// finalidade tem a sua chave derivada (NIST SP 800-57, uma chave por
+	// propósito).
+	infoAEAD       = "zap-gateway/v1/aead"
+	infoBlindIndex = "zap-gateway/v1/blind-index"
 )
 
 var (
@@ -83,6 +93,7 @@ func (s *Service) GenerateKey(ctx context.Context) (*DataKey, WrappedKey, error)
 		clear(raw)
 		return nil, WrappedKey{}, fmt.Errorf("envelope: cifrar chave de dados: %w", err)
 	}
+	// newDataKey apaga raw depois de derivar as subchaves.
 	dk, err := newDataKey(raw, s.rand)
 	if err != nil {
 		return nil, WrappedKey{}, err
@@ -113,31 +124,61 @@ func (s *Service) Rewrap(ctx context.Context, w WrappedKey) (WrappedKey, error) 
 }
 
 // DataKey é uma DEK em claro, mantida só em memória pelo worker dono da
-// instância. Segura para uso concorrente.
+// instância. Dela saem duas chaves derivadas por HKDF-SHA256: uma para
+// AES-256-GCM e outra para blind index (HMAC-SHA256). A DEK em si é apagada
+// logo após a derivação. Segura para uso concorrente.
 //
 // Limite: nonces de 96 bits aleatórios são seguros até ~2^32 cifragens por
-// chave. O auth state gera bem menos que isso por instância; ainda assim a DEK
-// deve ser trocada periodicamente (re-cifrando o estado), o que fica a cargo
-// do store.
+// chave (NIST SP 800-38D, §8.3). O auth state gera bem menos que isso por
+// instância; ainda assim a DEK deve ser trocada periodicamente (re-cifrando o
+// estado), o que fica a cargo do store.
 type DataKey struct {
 	mu   sync.RWMutex
-	raw  []byte
 	aead cipher.AEAD
+	idx  []byte
 	rand io.Reader
 }
 
 func newDataKey(raw []byte, r io.Reader) (*DataKey, error) {
-	block, err := aes.NewCipher(raw)
+	defer clear(raw)
+	encKey, err := hkdf.Key(sha256.New, raw, nil, infoAEAD, keySize)
 	if err != nil {
-		clear(raw)
+		return nil, fmt.Errorf("envelope: derivar chave de cifragem: %w", err)
+	}
+	defer clear(encKey)
+	idxKey, err := hkdf.Key(sha256.New, raw, nil, infoBlindIndex, keySize)
+	if err != nil {
+		return nil, fmt.Errorf("envelope: derivar chave de índice: %w", err)
+	}
+	block, err := aes.NewCipher(encKey)
+	if err != nil {
+		clear(idxKey)
 		return nil, fmt.Errorf("envelope: inicializar AES: %w", err)
 	}
 	aead, err := cipher.NewGCM(block)
 	if err != nil {
-		clear(raw)
+		clear(idxKey)
 		return nil, fmt.Errorf("envelope: inicializar GCM: %w", err)
 	}
-	return &DataKey{raw: raw, aead: aead, rand: r}, nil
+	return &DataKey{aead: aead, idx: idxKey, rand: r}, nil
+}
+
+// BlindIndex devolve HMAC-SHA256(chave de índice, domínio || valor). Permite
+// buscar por igualdade (ex.: telefone) sem guardar o valor. O domínio separa
+// usos diferentes do mesmo valor (ex.: "contato" e "conversa").
+func (k *DataKey) BlindIndex(domain string, value []byte) ([]byte, error) {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
+	if k.idx == nil {
+		return nil, ErrDestroyed
+	}
+	m := hmac.New(sha256.New, k.idx)
+	var n [4]byte
+	binary.BigEndian.PutUint32(n[:], uint32(len(domain))) //nolint:gosec // domínios são constantes curtas
+	m.Write(n[:])
+	m.Write([]byte(domain))
+	m.Write(value)
+	return m.Sum(nil), nil
 }
 
 // Seal cifra plaintext. aad (dado associado) não é cifrado, mas é autenticado:
@@ -179,8 +220,8 @@ func (k *DataKey) Open(sealed, aad []byte) ([]byte, error) {
 func (k *DataKey) Destroy() {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	clear(k.raw)
-	k.raw = nil
+	clear(k.idx)
+	k.idx = nil
 	k.aead = nil
 }
 

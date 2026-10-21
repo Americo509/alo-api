@@ -1,6 +1,7 @@
 # ADR-0010: Store próprio, cifrado e multi-tenant para o estado da sessão
 
-**Status:** Proposto — aguardando aprovação (passo 1.3 da Fase 1)
+**Status:** Aceito pelo PO em 2026-10-20, com a diretriz de seguir as boas
+práticas de ISO e NIST (ver seção "Conformidade com ISO/IEC 27001 e NIST")
 **Data:** 2026-10-20
 **Decisores:** Gustavo
 
@@ -122,6 +123,25 @@ teste) e contra o nosso store, e compara os resultados. Cobre os casos sutis
 (pre-keys não enviadas, migração PN→LID, transação de decifragem, contatos).
 Um upgrade do whatsmeow que mude o comportamento quebra esse teste antes de
 chegar em produção.
+
+## Conformidade com ISO/IEC 27001 e NIST
+
+Como cada prática se traduz em decisão de implementação. Referências: ISO/IEC
+27001:2022 Anexo A e ISO/IEC 27701 (privacidade); publicações do NIST citadas.
+
+| Prática | Referência | Implementação |
+|---|---|---|
+| Uso de criptografia definido por política | ISO 27001 A.8.24 | Este ADR + ADR-0005; algoritmos fixados em código, formato versionado para troca futura (agilidade criptográfica) |
+| Algoritmo aprovado para cifragem autenticada | NIST SP 800-38D (GCM), FIPS 197 (AES) | AES-256-GCM, nonce de 96 bits aleatório, limite de 2^32 cifragens por chave documentado |
+| Uma chave, um propósito | NIST SP 800-57 Parte 1, §5.2 | A DEK nunca é usada direto: chaves derivadas separadas para cifragem e para blind index |
+| Derivação de chave aprovada | NIST SP 800-56C rev. 2 (HKDF), FIPS 198-1 (HMAC) | HKDF-SHA256 com rótulos de contexto distintos; blind index com HMAC-SHA256 |
+| Hierarquia de chaves e proteção da chave mestra | NIST SP 800-57 Parte 1, §6 | Chave mestra no Vault Transit (não exportável); DEK cifrada por instância; rotação + rewrap |
+| Mascaramento de dados pessoais | ISO 27001 A.8.11, ISO 27701 | Telefones e IDs de conversa só como blind index; nomes e conteúdo só cifrados |
+| Exclusão de informação e sanitização | ISO 27001 A.8.10, NIST SP 800-88 rev. 1 (crypto erase) | Exclusão da instância destrói a DEK: dados e backups ficam ilegíveis |
+| Separação de ambientes e de clientes | ISO 27001 A.8.3 (restrição de acesso) | RLS por tenant + mapa LID por instância |
+| Integridade e anti-replay de dados armazenados | NIST SP 800-38D (AAD) | AAD amarra cada blob a instância, tabela e chave lógica |
+| Registro de eventos sem dado sensível | ISO 27001 A.8.15 | Erros e logs nunca carregam chave, plaintext nem telefone |
+| Módulo criptográfico validado | FIPS 140-3 | Só a biblioteca padrão do Go (`crypto/*`), cujo módulo criptográfico foi feito para FIPS 140-3 e tem modo `GODEBUG=fips140=on`. Conferir o status do certificado CMVP vigente antes de prometer FIPS em contrato |
 
 ## Consequências
 

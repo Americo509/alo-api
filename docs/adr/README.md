@@ -11,7 +11,7 @@
 | [0007](0007-identidade-login-painel.md) | Identidade e autenticação em Go (senha, MFA, Google, Apple…) | Proposto |
 | [0008](0008-acesso-por-assinatura.md) | Acesso por pagamento ou liberação manual | Proposto — falta gateway |
 | [0009](0009-frontend-spa-bff.md) | Front-end separado (SPA) com BFF | Proposto |
-| [0010](0010-store-auth-state.md) | Store próprio, cifrado e multi-tenant para a sessão | Proposto — aguardando aprovação |
+| [0010](0010-store-auth-state.md) | Store próprio, cifrado e multi-tenant para a sessão | Aceito (ISO 27001 / NIST) |
 | [0011](0011-armazenamento-de-objetos.md) | Armazenamento de objetos compatível com S3 | Proposto |
 
 **Fase 0 encerrada em 2026-10-20:** o PO aprovou a direção e o início da Fase 1.

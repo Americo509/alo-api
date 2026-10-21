@@ -3,6 +3,8 @@ package envelope_test
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"errors"
 	"testing"
 
@@ -180,5 +182,65 @@ func TestRandFailureSurfaces(t *testing.T) {
 	svc := envelope.New(envelopetest.New(), envelope.WithRand(bytes.NewReader(nil)))
 	if _, _, err := svc.GenerateKey(ctx); err == nil {
 		t.Fatal("GenerateKey ignorou falha da fonte aleatória")
+	}
+}
+
+func TestBlindIndex(t *testing.T) {
+	svc, _, dk, w := newKey(t)
+	phone := []byte("5511900000000")
+
+	a, err := dk.BlindIndex("signal-user", phone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a) != 32 || bytes.Contains(a, phone) {
+		t.Fatalf("índice inesperado: %x", a)
+	}
+	b, _ := dk.BlindIndex("signal-user", phone)
+	if !bytes.Equal(a, b) {
+		t.Fatal("índice não é determinístico")
+	}
+	// Mesma chave reaberta do banco gera o mesmo índice (buscas continuam valendo).
+	reopened, _ := svc.OpenKey(ctx, w)
+	if c, _ := reopened.BlindIndex("signal-user", phone); !bytes.Equal(a, c) {
+		t.Fatal("índice mudou após reabrir a chave")
+	}
+	// Domínios diferentes não colidem.
+	if d, _ := dk.BlindIndex("chat", phone); bytes.Equal(a, d) {
+		t.Fatal("domínios diferentes geraram o mesmo índice")
+	}
+	// Fronteira domínio/valor sem ambiguidade: ("ab","c") != ("a","bc").
+	x, _ := dk.BlindIndex("ab", []byte("c"))
+	y, _ := dk.BlindIndex("a", []byte("bc"))
+	if bytes.Equal(x, y) {
+		t.Fatal("concatenação ambígua entre domínio e valor")
+	}
+	// Outra instância (outra DEK) gera outro índice: não dá para cruzar bases.
+	_, _, other, _ := newKey(t)
+	if e, _ := other.BlindIndex("signal-user", phone); bytes.Equal(a, e) {
+		t.Fatal("instâncias diferentes geraram o mesmo índice")
+	}
+	dk.Destroy()
+	if _, err := dk.BlindIndex("signal-user", phone); !errors.Is(err, envelope.ErrDestroyed) {
+		t.Fatalf("BlindIndex após Destroy: %v", err)
+	}
+}
+
+// A DEK nunca é usada direto como chave AES (NIST SP 800-57: uma chave por
+// propósito): um AES-GCM com a DEK crua não abre o que a DataKey cifrou.
+func TestDEKIsNotUsedDirectly(t *testing.T) {
+	km := envelopetest.New()
+	svc := envelope.New(km)
+	dk, w, _ := svc.GenerateKey(ctx)
+	sealed, _ := dk.Seal(plaintext, aadA)
+
+	raw, err := km.Unwrap(ctx, w)
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, _ := aes.NewCipher(raw)
+	gcm, _ := cipher.NewGCM(block)
+	if _, err := gcm.Open(nil, sealed[1:13], sealed[13:], append([]byte{1}, aadA...)); err == nil {
+		t.Fatal("a DEK crua abriu o blob: subchave não está sendo derivada")
 	}
 }
