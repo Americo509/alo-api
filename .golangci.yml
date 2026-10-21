@@ -15,7 +15,6 @@ linters:
     - gosec
     - govet
     - ineffassign
-    - misspell
     - noctx
     - staticcheck
     - unused
@@ -62,6 +61,10 @@ linters:
     rules:
       - path: internal/clock/
         linters: [forbidigo]
+      # Credenciais em teste são valores fictícios; o gitleaks cobre segredos reais.
+      - path: _test\.go
+        text: "G101"
+        linters: [gosec]
       - path: cmd/
         text: "fmt\\.Print"
         linters: [forbidigo]

@@ -37,7 +37,7 @@ tasks:
   lint:
     desc: Lint e checagens de segurança estáticas
     cmds:
-      - "{{.TOOL}} golangci-lint run ./..."
+      - "{{.TOOL}} golangci-lint run --build-tags=integration ./..."
 
   test:
     desc: Testes unitários com detector de corrida
