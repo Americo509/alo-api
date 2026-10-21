@@ -47,15 +47,20 @@ func scanUser(row pgx.Row) (User, error) {
 	return u, err
 }
 
-// CreateUser insere um usuário. email deve vir já normalizado.
+// CreateUser insere um usuário. email deve vir já normalizado. Usa ON CONFLICT
+// DO NOTHING (em vez de deixar a unique estourar) para que, dentro de uma
+// transação, o e-mail duplicado não aborte a transação inteira — devolve
+// ErrEmailTaken e a transação segue utilizável.
 func (r *Repo) CreateUser(ctx context.Context, email, displayName string, emailVerified bool) (User, error) {
 	id := uuid.New()
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO ident.users (id, email, email_verified, display_name)
-		VALUES ($1, $2, $3, $4) RETURNING `+userCols,
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (lower(email)) DO NOTHING
+		RETURNING `+userCols,
 		id, email, emailVerified, displayName)
 	u, err := scanUser(row)
-	if isUniqueViolation(err, "users_email_uniq") {
+	if errors.Is(err, ErrNotFound) {
 		return User{}, ErrEmailTaken
 	}
 	return u, err
