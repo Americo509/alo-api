@@ -153,9 +153,22 @@ Como cada prática se traduz em decisão de implementação. Referências: ISO/I
   latência de rede do WhatsApp; medido no teste de 72h.
 - O `sqlstore` entra no `go.mod` só como dependência de teste do worker.
 
-## Itens de ação (após aprovação)
+## Itens de ação
 
-1. [ ] Migrations do schema `wa` com RLS e teste de catálogo (ADR-0006).
-2. [ ] Derivação de chaves (DEK → chave de cifragem por coluna + `k_idx`) com HKDF.
-3. [ ] Implementação por interface, cada uma com teste unitário e diferencial.
-4. [ ] Fencing com teste de integração de dois donos disputando a instância.
+1. [x] Migrations do schema `wa` com RLS e teste de catálogo (ADR-0006).
+2. [x] Derivação de chaves (DEK → chave de cifragem + chave de blind index) com HKDF.
+3. [x] Implementação de todas as interfaces, com teste diferencial contra o
+   `sqlstore` (`internal/session/store/diff_integration_test.go`).
+4. [x] Fencing com teste de integração de dois donos disputando a instância.
+5. [ ] Rotação periódica da DEK (re-cifrar o estado) e destruição da DEK na
+   exclusão da instância (crypto-shredding): Fase 2, junto com o ciclo de vida
+   da instância no control plane.
+
+### Diferenças intencionais em relação ao `sqlstore`
+
+- Busca por usuário é igualdade exata no blind index. O `sqlstore` usa
+  `LIKE 'usuario:%'`, em que `_` no nome do usuário vira curinga.
+- `DeleteOldBufferedHashes` apaga só os eventos da própria instância (o
+  `sqlstore` apaga de todas as devices do banco).
+- Registration ID gerado com `crypto/rand` (o `sqlstore` usa `math/rand`).
+- Retenções usam o relógio injetado (testável), não `time.Now`.

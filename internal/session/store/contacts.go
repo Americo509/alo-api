@@ -184,21 +184,16 @@ func (s *Store) PutContactName(ctx context.Context, user types.JID, firstName, f
 
 const contactBatchSize = 300
 
-// dedupLast mantém a última ocorrência de cada JID, na ordem da primeira.
-func dedupLast[T any](items []T, key func(T) types.JID) []T {
-	last := make(map[types.JID]int, len(items))
-	for i, it := range items {
-		last[key(it)] = i
-	}
-	out := make([]T, 0, len(last))
-	seen := make(map[types.JID]bool, len(last))
+// dedupFirst mantém a primeira ocorrência de cada JID, como o
+// exslices.DeduplicateUnsortedOverwriteFunc usado pelo sqlstore.
+func dedupFirst[T any](items []T, key func(T) types.JID) []T {
+	seen := make(map[types.JID]bool, len(items))
+	out := make([]T, 0, len(items))
 	for _, it := range items {
-		k := key(it)
-		if seen[k] {
-			continue
+		if k := key(it); !seen[k] {
+			seen[k] = true
+			out = append(out, it)
 		}
-		seen[k] = true
-		out = append(out, items[last[k]])
 	}
 	return out
 }
@@ -260,7 +255,7 @@ func (s *Store) PutAllContactNames(ctx context.Context, contacts []wastore.Conta
 		return nil
 	}
 	orig := len(contacts)
-	contacts = dedupLast(contacts, func(c wastore.ContactEntry) types.JID { return c.JID })
+	contacts = dedupFirst(contacts, func(c wastore.ContactEntry) types.JID { return c.JID })
 	if orig != len(contacts) {
 		s.log.Warn("contatos duplicados em PutAllContactNames", "quantidade", orig-len(contacts))
 	}
@@ -285,7 +280,7 @@ func (s *Store) PutManyRedactedPhones(ctx context.Context, entries []wastore.Red
 		return nil
 	}
 	orig := len(entries)
-	entries = dedupLast(entries, func(e wastore.RedactedPhoneEntry) types.JID { return e.JID })
+	entries = dedupFirst(entries, func(e wastore.RedactedPhoneEntry) types.JID { return e.JID })
 	if orig != len(entries) {
 		s.log.Warn("contatos duplicados em PutManyRedactedPhones", "quantidade", orig-len(entries))
 	}
