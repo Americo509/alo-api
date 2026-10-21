@@ -1,0 +1,75 @@
+# Ambiente local de desenvolvimento. NÃO usar em produção:
+# - Vault roda em modo dev (sem selagem, em memória);
+# - credenciais abaixo são valores fixos de desenvolvimento, sem valor real.
+# Portas expostas só em 127.0.0.1, em faixa própria (15432, 16379, 14222,
+# 18222, 18333, 18200) para não conflitar com outros projetos. Ajuste por
+# variável DEV_*_PORT se precisar.
+name: zap-gateway-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg16
+    environment:
+      POSTGRES_DB: zapgateway
+      POSTGRES_USER: app_owner
+      POSTGRES_PASSWORD: ${DEV_PG_PASSWORD:-dev-only}
+    ports: ["127.0.0.1:${DEV_PG_PORT:-15432}:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_owner -d zapgateway"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7.4.11-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:${DEV_REDIS_PORT:-16379}:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  nats:
+    image: nats:2.14.8-alpine
+    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
+    ports: ["127.0.0.1:${DEV_NATS_PORT:-14222}:4222", "127.0.0.1:${DEV_NATS_HTTP_PORT:-18222}:8222"]
+    volumes: [natsdata:/data]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8222/healthz?js-enabled-only=true"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Armazenamento compatível com S3 (ADR-0011). O código usa só a API S3.
+  objects:
+    image: chrislusf/seaweedfs:4.01
+    command: ["server", "-s3", "-dir=/data", "-ip.bind=0.0.0.0"]
+    ports: ["127.0.0.1:${DEV_S3_PORT:-18333}:8333"]
+    volumes: [objdata:/data]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:9333/cluster/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  vault:
+    image: hashicorp/vault:1.21.4
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${DEV_VAULT_TOKEN:-dev-only-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add: [IPC_LOCK]
+    ports: ["127.0.0.1:${DEV_VAULT_PORT:-18200}:8200"]
+    healthcheck:
+      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
+  redisdata:
+  natsdata:
+  objdata:

@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Ações fixadas por SHA de commit (não por tag mutável). O Dependabot atualiza.
+jobs:
+  check:
+    name: lint, testes, vulnerabilidades e licenças
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
+      - name: Formatação
+        run: go tool -modfile=tools/go.mod task fmt-check
+      - name: Lint
+        run: go tool -modfile=tools/go.mod task lint
+      - name: Testes unitários (-race)
+        run: go tool -modfile=tools/go.mod task test
+      - name: Vulnerabilidades
+        run: go tool -modfile=tools/go.mod task vuln
+      - name: Licenças
+        run: go tool -modfile=tools/go.mod task licenses
+
+  secrets:
+    name: segredos no histórico
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: gitleaks
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git --redact --no-banner /repo
+
+  integration:
+    name: testes de integração
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
+      - run: go tool -modfile=tools/go.mod task test-integration

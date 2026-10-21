@@ -11,6 +11,8 @@
 | [0007](0007-identidade-login-painel.md) | Identidade e autenticação em Go (senha, MFA, Google, Apple…) | Proposto |
 | [0008](0008-acesso-por-assinatura.md) | Acesso por pagamento ou liberação manual | Proposto — falta gateway |
 | [0009](0009-frontend-spa-bff.md) | Front-end separado (SPA) com BFF | Proposto |
+| 0010 | Store do auth state da sessão | Reservado — passo 1.3 da Fase 1 |
+| [0011](0011-armazenamento-de-objetos.md) | Armazenamento de objetos compatível com S3 | Proposto |
 
 **Fase 0 encerrada em 2026-10-20:** o PO aprovou a direção e o início da Fase 1.
 Os ADRs 0001–0009 passam a valer como decisões vigentes; o aceite formal de

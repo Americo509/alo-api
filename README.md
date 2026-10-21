@@ -83,6 +83,27 @@ Regras de dependência entre pacotes (checadas no CI com `depguard`):
 - `cmd/api` nunca importa `internal/session`.
 - `channel/*` dependem da porta, nunca o contrário.
 
+## Desenvolvimento local
+
+Pré-requisitos: Go 1.27+ (a versão exata é baixada sozinha pelo `toolchain`
+do `go.mod`) e Docker. Não precisa de `make`: as tarefas rodam pelo
+[Task](https://taskfile.dev), fixado em `tools/go.mod`.
+
+```bash
+go tool -modfile=tools/go.mod task --list        # todas as tarefas
+go tool -modfile=tools/go.mod task compose-up    # Postgres, Redis, NATS, S3, Vault
+go tool -modfile=tools/go.mod task check         # formatação, lint, testes, vulnerabilidades, licenças
+go tool -modfile=tools/go.mod task test-docker   # testes com -race em container (Windows sem gcc)
+```
+
+Portas locais (todas em `127.0.0.1`, ajustáveis por `DEV_*_PORT`):
+Postgres 15432, Redis 16379, NATS 14222 (monitoramento 18222), S3 18333,
+Vault 18200.
+
+Ferramentas fixadas em `tools/go.mod` (módulo separado, para as dependências
+delas não se misturarem com as do produto): Task, golangci-lint, govulncheck,
+go-licenses, buf. O gitleaks roda em container.
+
 ## Documentos
 
 - [ADRs](docs/adr/README.md)

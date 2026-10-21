@@ -1,0 +1,23 @@
+# Binários e artefatos
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Segredos locais — nunca versionar
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editores e SO
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Front-end (web/)
+node_modules/

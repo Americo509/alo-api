@@ -1,0 +1,76 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - depguard
+    - errcheck
+    - errorlint
+    - forbidigo
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - noctx
+    - staticcheck
+    - unused
+  settings:
+    depguard:
+      rules:
+        # ADR-0003: whatsmeow (MPL-2.0) traz libsignal (GPL-3.0). Só o worker de
+        # sessão pode importar.
+        protocolo-isolado:
+          files:
+            - "$all"
+            - "!**/internal/session/**"
+            - "!**/cmd/session-worker/**"
+          deny:
+            - pkg: go.mau.fi/whatsmeow
+              desc: "só internal/session e cmd/session-worker podem importar whatsmeow (ADR-0003)"
+            - pkg: go.mau.fi/libsignal
+              desc: "libsignal é GPL-3.0; fica restrita ao worker de sessão (ADR-0003)"
+        # ADR-0006: o domínio é puro, sem I/O nem dependência de outros pacotes internos.
+        dominio-puro:
+          files:
+            - "**/internal/domain/**"
+          deny:
+            - pkg: github.com/zapgateway/zap-gateway/internal/storage
+              desc: "domain não faz I/O"
+            - pkg: github.com/jackc/pgx
+              desc: "domain não faz I/O"
+            - pkg: net/http
+              desc: "domain não faz I/O"
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^time\.Now$
+          msg: "use clock.Clock (docs/CONVENCOES.md)"
+        - pattern: ^time\.Sleep$
+          msg: "use clock.Clock; testes não dormem (docs/CONVENCOES.md)"
+        - pattern: ^(fmt\.Print.*|print|println)$
+          msg: "use slog com redação de PII (docs/CONVENCOES.md)"
+    gosec:
+      excludes:
+        - G104 # coberto por errcheck
+  exclusions:
+    generated: strict
+    rules:
+      - path: internal/clock/
+        linters: [forbidigo]
+      - path: cmd/
+        text: "fmt\\.Print"
+        linters: [forbidigo]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/zapgateway/zap-gateway

@@ -1,0 +1,87 @@
+# Executor de tarefas multiplataforma (funciona no Windows sem make).
+# Uso: go tool -modfile=tools/go.mod task <tarefa>
+# Lista: go tool -modfile=tools/go.mod task --list
+version: "3"
+
+vars:
+  TOOL: go tool -modfile=tools/go.mod
+  # Licenças aceitas fora do worker de sessão (ADR-0003).
+  LICENCAS: MIT,BSD-2-Clause,BSD-3-Clause,Apache-2.0,ISC,MPL-2.0,Unlicense
+  # Dependências cujo módulo não é Go e o go-licenses não consegue analisar.
+  IGNORAR_LICENCA: github.com/zapgateway/zap-gateway
+
+tasks:
+  default:
+    cmds:
+      - task: check
+
+  check:
+    desc: Tudo que o CI roda, exceto integração
+    cmds:
+      - task: fmt-check
+      - task: lint
+      - task: test
+      - task: vuln
+      - task: licenses
+
+  fmt:
+    desc: Formata o código
+    cmds:
+      - "{{.TOOL}} golangci-lint fmt ./..."
+
+  fmt-check:
+    desc: Falha se houver código sem formatar
+    cmds:
+      - "{{.TOOL}} golangci-lint fmt --diff ./..."
+
+  lint:
+    desc: Lint e checagens de segurança estáticas
+    cmds:
+      - "{{.TOOL}} golangci-lint run ./..."
+
+  test:
+    desc: Testes unitários com detector de corrida
+    env:
+      CGO_ENABLED: "1"
+    cmds:
+      - go test -race -count=1 ./...
+
+  test-short:
+    desc: Testes unitários sem -race (para máquinas sem compilador C)
+    cmds:
+      - go test -count=1 ./...
+
+  test-docker:
+    desc: Testes com -race dentro de um container Linux (Windows sem gcc)
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/src" -v zapgw-gomod:/go/pkg/mod -w /src golang:1.27.3 go test -race -count=1 ./...
+
+  test-integration:
+    desc: Testes de integração (exige Docker)
+    cmds:
+      - go test -tags=integration -count=1 ./test/integration/... ./internal/...
+
+  vuln:
+    desc: Vulnerabilidades conhecidas nas dependências
+    cmds:
+      - "{{.TOOL}} govulncheck ./..."
+
+  licenses:
+    desc: Falha se aparecer licença fora da lista permitida (ADR-0003)
+    cmds:
+      - "{{.TOOL}} go-licenses check ./... --allowed_licenses={{.LICENCAS}} --ignore={{.IGNORAR_LICENCA}}"
+
+  secrets:
+    desc: Procura segredos no histórico do Git (gitleaks em container; conflita com as dependências do tools/go.mod)
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/repo" zricethezav/gitleaks:v8.30.1 git --redact --no-banner /repo
+
+  compose-up:
+    desc: Sobe Postgres, Redis, NATS, armazenamento S3 e Vault locais
+    cmds:
+      - docker compose -f deploy/compose/compose.yaml up -d --wait
+
+  compose-down:
+    desc: Derruba o ambiente local (mantém volumes)
+    cmds:
+      - docker compose -f deploy/compose/compose.yaml down
