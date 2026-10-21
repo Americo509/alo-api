@@ -69,7 +69,11 @@ tasks:
   licenses:
     desc: Falha se aparecer licença fora da lista permitida (ADR-0003)
     cmds:
-      - "{{.TOOL}} go-licenses check ./... --allowed_licenses={{.LICENCAS}} --ignore={{.IGNORAR_LICENCA}}"
+      # 1) Tudo, com a lista estrita. A libsignal (GPL-3.0) é ignorada aqui
+      #    porque o depguard garante que só internal/session a alcança.
+      - "{{.TOOL}} go-licenses check ./... --allowed_licenses={{.LICENCAS}} --ignore={{.IGNORAR_LICENCA}} --ignore=go.mau.fi/libsignal"
+      # 2) O worker de sessão, onde a GPL-3.0 é aceita (serviço não distribuído).
+      - "{{.TOOL}} go-licenses check ./internal/session/... --allowed_licenses={{.LICENCAS}},GPL-3.0 --ignore={{.IGNORAR_LICENCA}}"
 
   secrets:
     desc: Procura segredos no histórico do Git (gitleaks em container; conflita com as dependências do tools/go.mod)

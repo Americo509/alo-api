@@ -33,6 +33,9 @@ linters:
               desc: "só internal/session e cmd/session-worker podem importar whatsmeow (ADR-0003)"
             - pkg: go.mau.fi/libsignal
               desc: "libsignal é GPL-3.0; fica restrita ao worker de sessão (ADR-0003)"
+            # Importar internal/session de fora levaria o código GPL junto.
+            - pkg: github.com/zapgateway/zap-gateway/internal/session
+              desc: "internal/session só pode ser importado pelo worker de sessão (ADR-0003)"
         # ADR-0006: o domínio é puro, sem I/O nem dependência de outros pacotes internos.
         dominio-puro:
           files:
