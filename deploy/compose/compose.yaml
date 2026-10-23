@@ -4,7 +4,7 @@
 # Portas expostas só em 127.0.0.1, em faixa própria (15432, 16379, 14222,
 # 18222, 18333, 18200) para não conflitar com outros projetos. Ajuste por
 # variável DEV_*_PORT se precisar.
-name: zap-gateway-dev
+name: alo-api-dev
 
 services:
   postgres:

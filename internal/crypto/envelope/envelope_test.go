@@ -8,8 +8,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope"
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope/envelopetest"
+	"github.com/Americo509/alo-api/internal/crypto/envelope"
+	"github.com/Americo509/alo-api/internal/crypto/envelope/envelopetest"
 )
 
 var (

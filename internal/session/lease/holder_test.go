@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
+	"github.com/Americo509/alo-api/internal/clock"
 )
 
 var t0 = time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)

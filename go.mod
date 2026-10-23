@@ -1,4 +1,4 @@
-module github.com/zapgateway/zap-gateway
+module github.com/Americo509/alo-api
 
 go 1.27.0
 

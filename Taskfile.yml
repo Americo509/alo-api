@@ -8,7 +8,7 @@ vars:
   # Licenças aceitas fora do worker de sessão (ADR-0003).
   LICENCAS: MIT,BSD-2-Clause,BSD-3-Clause,Apache-2.0,ISC,MPL-2.0,Unlicense
   # Dependências cujo módulo não é Go e o go-licenses não consegue analisar.
-  IGNORAR_LICENCA: github.com/zapgateway/zap-gateway
+  IGNORAR_LICENCA: github.com/Americo509/alo-api
 
 tasks:
   default:
