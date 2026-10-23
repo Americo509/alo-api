@@ -64,6 +64,8 @@ outros como atalho. Desenho completo no ADR-0007.
 **Q20 — E-mail transacional.** Verificação de conta e recuperação de senha
 precisam de um serviço de envio de e-mail (Amazon SES, Resend, Postmark,
 SendGrid…), com SPF, DKIM e DMARC no domínio. Qual usar, e qual domínio?
+*Andamento:* o código envia por **SMTP com TLS obrigatório** (`internal/mailer`),
+então qualquer provedor com SMTP serve; falta só escolher e configurar o domínio.
 
 **Q16 — Papéis no painel.** Proposta: `dono`, `admin`, `operador` (atende
 conversas), `leitura`. Atende?

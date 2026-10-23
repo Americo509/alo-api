@@ -36,6 +36,8 @@ depois se um binário precisar de ciclo de release próprio.
 │   ├── tenant/                 # contexto de tenant, RLS helpers
 │   ├── apikey/                 # emissão, hash Argon2id, escopo, rotação
 │   ├── identity/               # login OIDC, usuários, memberships, sessão (ADR-0007)
+│   ├── bff/                    # rotas HTTP de autenticação para o SPA (ADR-0009)
+│   ├── mailer/                 # e-mail transacional: SMTP seguro + fila cifrada
 │   ├── billing/                # entitlement, planos, liberação manual (ADR-0008)
 │   │   └── gateway/            # adapters de pagamento
 │   ├── admin/                  # ações do admin da plataforma, sempre auditadas

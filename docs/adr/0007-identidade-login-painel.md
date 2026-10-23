@@ -1,6 +1,6 @@
 # ADR-0007: Identidade e autenticação implementadas em Go
 
-**Status:** Proposto
+**Status:** Aceito (implementado na Fase 2a)
 **Data:** 2026-10-20
 **Decisores:** Gustavo
 

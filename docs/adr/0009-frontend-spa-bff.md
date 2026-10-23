@@ -1,6 +1,6 @@
 # ADR-0009: Front-end separado (SPA) com BFF
 
-**Status:** Proposto
+**Status:** Aceito (implementado na Fase 2a)
 **Data:** 2026-10-20
 **Decisores:** Gustavo
 
@@ -78,3 +78,11 @@ dois lados juntos.
 - O BFF é uma camada fina: autentica, aplica entitlement (ADR-0008) e chama os
   mesmos serviços internos da API pública.
 - Revisitar: SSR para páginas públicas (site, docs) é outro projeto, fora do painel.
+
+## Contrato implementado (Fase 2a, `internal/bff`)
+
+Rotas sob `/bff/auth/*`. Links enviados por e-mail levam o token no
+**fragmento** (`#token=...`), que não chega a logs de servidor nem a `Referer`:
+`/auth/verify-email`, `/auth/reset-password`, `/auth/login`, `/auth/mfa`,
+`/settings/security`. O SPA lê o fragmento e envia o token por POST JSON.
+Cookie `__Host-session`; token CSRF em cabeçalho; erros em `problem+json`.
