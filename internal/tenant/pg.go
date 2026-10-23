@@ -16,6 +16,7 @@ import (
 // DB é o que o PG precisa do pool.
 type DB interface {
 	postgres.Beginner
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }

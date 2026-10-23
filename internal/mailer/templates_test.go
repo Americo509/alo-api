@@ -135,3 +135,28 @@ func TestNewTemplatesValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestInvitationEmail(t *testing.T) {
+	tp := tpl(t)
+	r, err := tp.Invitation(tokenSecret, "Clínica <b>Aurora</b>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for body, content := range map[string]string{"texto": r.Text, "html": r.HTML} {
+		i := strings.Index(content, tokenSecret)
+		if i < 0 || !strings.Contains(content[:i], "/auth/accept-invite#token=") {
+			t.Errorf("%s: token fora do fragmento do link de convite", body)
+		}
+	}
+	if strings.Contains(r.HTML, "<b>Aurora</b>") {
+		t.Error("o nome do tenant não foi escapado no HTML")
+	}
+	if strings.Contains(r.Subject, tokenSecret) || strings.ContainsAny(r.Subject, "\r\n") {
+		t.Errorf("assunto inválido: %q", r.Subject)
+	}
+	for _, bad := range []string{"", "  ", "linha\r\nBcc: x@y.z"} {
+		if _, err := tp.Invitation(tokenSecret, bad); err == nil {
+			t.Errorf("nome %q aceito", bad)
+		}
+	}
+}

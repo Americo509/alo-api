@@ -23,6 +23,7 @@ const (
 	KindRecovery        Kind = "recuperacao_senha"
 	KindPasswordChanged Kind = "senha_alterada"
 	KindAccountExists   Kind = "conta_existente"
+	KindInvitation      Kind = "convite_tenant"
 )
 
 // Sealer cifra o conteúdo na fila: o e-mail carrega links com tokens, então
@@ -119,6 +120,15 @@ func (m *OutboxMailer) SendPasswordRecovery(ctx context.Context, to, token strin
 		return err
 	}
 	return m.enqueue(ctx, KindRecovery, to, r, RecoveryValidity)
+}
+
+// SendInvitation implementa tenant.Mailer.
+func (m *OutboxMailer) SendInvitation(ctx context.Context, to, token, tenantName string) error {
+	r, err := m.tpl.Invitation(token, tenantName)
+	if err != nil {
+		return err
+	}
+	return m.enqueue(ctx, KindInvitation, to, r, InvitationValidity)
 }
 
 // SendPasswordChanged implementa authflow.Mailer.

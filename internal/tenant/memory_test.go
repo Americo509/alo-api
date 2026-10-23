@@ -14,3 +14,10 @@ func TestMemoryStoreContract(t *testing.T) {
 		return tenant.NewMemory(), uuid.New
 	})
 }
+
+func TestInviteMemoryContract(t *testing.T) {
+	storetest.RunInvites(t, func(*testing.T) (tenant.Store, tenant.InviteStore, func(string) uuid.UUID) {
+		mem := tenant.NewMemory()
+		return mem, tenant.NewInviteMemory(mem), func(string) uuid.UUID { return uuid.New() }
+	})
+}

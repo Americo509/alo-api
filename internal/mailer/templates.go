@@ -16,6 +16,7 @@ import (
 const (
 	VerificationValidity = 24 * time.Hour
 	RecoveryValidity     = 30 * time.Minute
+	InvitationValidity   = 7 * 24 * time.Hour
 )
 
 // Templates monta os e-mails em português do Brasil.
@@ -111,6 +112,25 @@ func (t Templates) PasswordRecovery(token string) (Rendered, error) {
 		Button: "Redefinir senha",
 		Footer: "Se você não fez este pedido, ignore esta mensagem: sua senha continua a mesma. Nunca compartilhe este link.",
 	}, "Redefinir sua senha")
+}
+
+// Invitation: convite para entrar num tenant. tenantName vem de quem convida
+// e é escapado pelo modelo HTML; o link só vale para quem tem este e-mail.
+func (t Templates) Invitation(token, tenantName string) (Rendered, error) {
+	if strings.TrimSpace(tenantName) == "" || hasControl(tenantName) {
+		return Rendered{}, errors.New("mailer: nome do tenant inválido")
+	}
+	return t.render(content{
+		Title: "Você foi convidado",
+		Paragraphs: []string{
+			fmt.Sprintf("Você foi convidado para participar de %q no %s.", tenantName, t.productName),
+			"Entre (ou crie uma conta) com ESTE e-mail para aceitar. O convite só funciona para o endereço que o recebeu.",
+			fmt.Sprintf("O link vale por %d dias e só pode ser usado uma vez.", int(InvitationValidity.Hours()/24)),
+		},
+		Link:   t.linkWithToken("/auth/accept-invite", token),
+		Button: "Aceitar convite",
+		Footer: "Se você não esperava este convite, ignore esta mensagem: nada acontece sem o seu aceite.",
+	}, "Convite para participar")
 }
 
 // PasswordChanged: aviso de segurança, sem link.

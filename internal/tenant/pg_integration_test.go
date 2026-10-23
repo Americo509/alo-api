@@ -72,3 +72,17 @@ func TestPGTenantRowsAreInvisibleAcrossTenants(t *testing.T) {
 		t.Errorf("tenant A foi alterado: %q", got.Name)
 	}
 }
+
+func TestPGInviteStoreContract(t *testing.T) {
+	storetest.RunInvites(t, func(t *testing.T) (tenant.Store, tenant.InviteStore, func(string) uuid.UUID) {
+		newUser := func(email string) uuid.UUID {
+			// E-mail único por teste: o contrato reaproveita nomes entre subtestes.
+			u, err := identity.NewRepo(db.Owner).CreateUser(context.Background(), uuid.NewString()+"+"+email, "", true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return u.ID
+		}
+		return tenant.NewPG(db.App), tenant.NewInvitePG(db.App), newUser
+	})
+}
