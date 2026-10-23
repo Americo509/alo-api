@@ -1,4 +1,4 @@
-# Plataforma de Mensageria WhatsApp (nome provisório: `zap-gateway`)
+# Alô API — plataforma de mensageria WhatsApp
 
 Gateway multi-tenant que expõe uma API REST única para os sistemas clientes
 (CONECTA Plantão, sistema da nutricionista, automações) e entrega mensagens por
