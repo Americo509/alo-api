@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
+	"github.com/Americo509/alo-api/internal/clock"
 )
 
 // Manager adquire leases para um worker.

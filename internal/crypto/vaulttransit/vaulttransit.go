@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope"
+	"github.com/Americo509/alo-api/internal/crypto/envelope"
 )
 
 const maxResponseBytes = 1 << 20

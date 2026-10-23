@@ -20,8 +20,8 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres"
-	"github.com/zapgateway/zap-gateway/migrations"
+	"github.com/Americo509/alo-api/internal/storage/postgres"
+	"github.com/Americo509/alo-api/migrations"
 )
 
 const (

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope"
+	"github.com/Americo509/alo-api/internal/crypto/envelope"
 )
 
 const refPrefix = "local-test:v"

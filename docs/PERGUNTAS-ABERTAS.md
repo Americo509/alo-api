@@ -24,8 +24,8 @@ estão disponíveis. Requisito de dados no Brasil?
 pessoal e sem histórico? O critério "72h estável" precisa de um número que
 possa ser perdido sem prejuízo.
 
-**Q5 — Repositório.** Onde fica (GitHub privado?) e qual o module path
-(ex.: `github.com/<org>/zap-gateway`)? Nome do produto?
+~~**Q5 — Repositório.**~~ **Respondida (2026-10-23):** produto **Alô API**; repositório
+privado `github.com/Americo509/alo-api`, que também é o module path do Go.
 
 ## Bloqueiam a Fase 2
 

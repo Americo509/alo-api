@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope"
+	"github.com/Americo509/alo-api/internal/crypto/envelope"
 )
 
 const testToken = "token-de-teste"

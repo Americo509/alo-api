@@ -75,5 +75,4 @@ type Clock interface {
    temporária desta sessão.
 2. Q4 (número de teste) só é necessária no passo 1.6; até lá tudo roda com
    fakes e containers.
-3. Q5 (module path): até a resposta, uso `github.com/<org>/zap-gateway` como
-   provisório, trocável com um comando.
+3. Q5 respondida (2026-10-23): module path `github.com/Americo509/alo-api`.

@@ -16,11 +16,11 @@ import (
 	wastore "go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/types"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope"
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope/envelopetest"
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres"
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres/pgtest"
+	"github.com/Americo509/alo-api/internal/clock"
+	"github.com/Americo509/alo-api/internal/crypto/envelope"
+	"github.com/Americo509/alo-api/internal/crypto/envelope/envelopetest"
+	"github.com/Americo509/alo-api/internal/storage/postgres"
+	"github.com/Americo509/alo-api/internal/storage/postgres/pgtest"
 )
 
 var (

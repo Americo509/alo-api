@@ -12,8 +12,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres"
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres/pgtest"
+	"github.com/Americo509/alo-api/internal/storage/postgres"
+	"github.com/Americo509/alo-api/internal/storage/postgres/pgtest"
 )
 
 var db *pgtest.DB

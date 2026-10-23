@@ -34,14 +34,14 @@ linters:
             - pkg: go.mau.fi/libsignal
               desc: "libsignal é GPL-3.0; fica restrita ao worker de sessão (ADR-0003)"
             # Importar internal/session de fora levaria o código GPL junto.
-            - pkg: github.com/zapgateway/zap-gateway/internal/session
+            - pkg: github.com/Americo509/alo-api/internal/session
               desc: "internal/session só pode ser importado pelo worker de sessão (ADR-0003)"
         # ADR-0006: o domínio é puro, sem I/O nem dependência de outros pacotes internos.
         dominio-puro:
           files:
             - "**/internal/domain/**"
           deny:
-            - pkg: github.com/zapgateway/zap-gateway/internal/storage
+            - pkg: github.com/Americo509/alo-api/internal/storage
               desc: "domain não faz I/O"
             - pkg: github.com/jackc/pgx
               desc: "domain não faz I/O"
@@ -79,4 +79,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/zapgateway/zap-gateway
+        - github.com/Americo509/alo-api
