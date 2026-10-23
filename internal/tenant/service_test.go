@@ -87,7 +87,7 @@ func TestCreateMakesCreatorOwner(t *testing.T) {
 func TestCreateRules(t *testing.T) {
 	e := newEnv(t)
 	u := e.user(t, "ana")
-	for _, bad := range []string{"", "   ", strings.Repeat("a", 101), "nome\x00nulo", "linha‮bidi"} {
+	for _, bad := range []string{"", "   ", strings.Repeat("a", 101), "nome\x00nulo", "linha" + string(rune(0x202e)) + "bidi"} {
 		if _, err := e.svc.Create(ctx, u, bad); !errors.Is(err, ErrInvalidName) {
 			t.Errorf("nome %q: %v", bad, err)
 		}
