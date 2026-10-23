@@ -110,7 +110,7 @@ func TestIPBlockButNotAccountLockout(t *testing.T) {
 	}
 }
 
-func TestSuccessResets(t *testing.T) {
+func TestSuccessResetsAccountButNotIP(t *testing.T) {
 	g, _ := newGuard(t, cfg)
 	for range 4 {
 		fail(t, g)
@@ -118,9 +118,14 @@ func TestSuccessResets(t *testing.T) {
 	if err := g.Success(ctx, ip, acct); err != nil {
 		t.Fatal(err)
 	}
-	d, _ := g.Check(ctx, ip, acct)
-	if !d.Allow || d.Delay != 0 || d.Challenge {
-		t.Fatalf("Success não zerou os contadores: %+v", d)
+	// A conta esfriou: de outro IP, está limpa.
+	if d, _ := g.Check(ctx, "198.51.100.9", acct); d.Delay != 0 || d.Challenge {
+		t.Fatalf("Success não zerou o contador da conta: %+v", d)
+	}
+	// O IP NÃO esfriou: um atacante com conta própria não zera o limite do IP
+	// alternando logins válidos.
+	if d, _ := g.Check(ctx, ip, "outra-conta"); d.Delay == 0 {
+		t.Fatalf("Success zerou o contador do IP: %+v", d)
 	}
 }
 

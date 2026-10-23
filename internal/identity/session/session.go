@@ -42,6 +42,13 @@ type Data struct {
 	AbsExpiresAt time.Time `json:"abs"`
 	// AMR registra como o usuário se autenticou (ex.: "pwd", "mfa", "oidc").
 	AMR []string `json:"amr,omitempty"`
+	// AuthAt é o instante da última autenticação FORTE (login ou reautenticação).
+	// Ações sensíveis exigem que seja recente.
+	AuthAt time.Time `json:"aat,omitempty"`
+	// IP e UserAgent identificam o dispositivo na tela "sessões ativas". Ficam
+	// só enquanto a sessão existir (no máximo Absolute).
+	IP        string `json:"ip,omitempty"`
+	UserAgent string `json:"ua,omitempty"`
 }
 
 // Config define os tempos de vida da sessão.
@@ -108,10 +115,7 @@ func NewManager(be Backend, cfg Config, clk clock.Clock, opts ...Option) (*Manag
 
 // Create abre uma sessão nova e devolve o ID (para o cookie) e os dados.
 func (m *Manager) Create(ctx context.Context, userID uuid.UUID, amr ...string) (id string, d Data, err error) {
-	now := m.clock.Now()
-	d = Data{UserID: userID, CreatedAt: now, LastSeenAt: now, AbsExpiresAt: now.Add(m.cfg.Absolute), AMR: amr}
-	id, err = m.store(ctx, d)
-	return id, d, err
+	return m.CreateWithMeta(ctx, userID, Meta{}, amr...)
 }
 
 // Get valida o ID e, em caso de sucesso, desliza a janela de inatividade.
@@ -153,6 +157,7 @@ func (m *Manager) Rotate(ctx context.Context, oldID string, amr ...string) (newI
 	}
 	if len(amr) > 0 {
 		d.AMR = mergeAMR(d.AMR, amr)
+		d.AuthAt = m.clock.Now() // nova autenticação forte
 	}
 	oldKey, _ := keyOf(oldID)
 	if err := m.revoke(ctx, oldKey, d.UserID); err != nil {

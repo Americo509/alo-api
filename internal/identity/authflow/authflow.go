@@ -1,7 +1,7 @@
-// Package authflow orquestra cadastro, verificação de e-mail, login por senha
-// e recuperação de senha (ADR-0007, itens 2 e 3), com defesa contra
+// Package authflow orquestra cadastro, verificação de e-mail, login por senha,
+// recuperação e troca de senha (ADR-0007, itens 2 e 3), com defesa contra
 // enumeração de contas: as operações que recebem um e-mail respondem de forma
-// uniforme exista ou não a conta, e igualam o tempo de resposta.
+// uniforme exista ou não a conta, e o login iguala o tempo de resposta.
 package authflow
 
 import (
@@ -29,11 +29,52 @@ type Hasher interface {
 	Verify(plain []byte, encoded string) (ok bool, needsRehash bool, err error)
 }
 
+// Store é o acesso a usuários e senhas. identity.Repo satisfaz.
+type Store interface {
+	GetUserByEmail(ctx context.Context, email string) (identity.User, error)
+	GetUser(ctx context.Context, id uuid.UUID) (identity.User, error)
+	GetPassword(ctx context.Context, id uuid.UUID) (string, error)
+	SetPassword(ctx context.Context, id uuid.UUID, phc string) error
+	CreateUser(ctx context.Context, email, displayName string, verified bool) (identity.User, error)
+	SetEmailVerified(ctx context.Context, id uuid.UUID) error
+}
+
+// Tokens emite e consome tokens de uso único. authtoken.Service satisfaz.
+type Tokens interface {
+	Issue(ctx context.Context, userID uuid.UUID, p authtoken.Purpose) (string, error)
+	Consume(ctx context.Context, token string, p authtoken.Purpose) (uuid.UUID, error)
+	InvalidateAll(ctx context.Context, userID uuid.UUID, p authtoken.Purpose) error
+}
+
+// Atomic executa fn numa transação, com o Store e os Tokens ligados a ela:
+// ou tudo acontece, ou nada.
+type Atomic interface {
+	Do(ctx context.Context, fn func(Store, Tokens) error) error
+}
+
+// PGAtomic implementa Atomic sobre uma transação do Postgres.
+type PGAtomic struct {
+	pool   postgres.Beginner
+	tokens *authtoken.Service
+}
+
+// NewPGAtomic cria o Atomic do Postgres.
+func NewPGAtomic(pool postgres.Beginner, tokens *authtoken.Service) *PGAtomic {
+	return &PGAtomic{pool: pool, tokens: tokens}
+}
+
+// Do implementa Atomic.
+func (a *PGAtomic) Do(ctx context.Context, fn func(Store, Tokens) error) error {
+	return pgx.BeginTxFunc(ctx, a.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		return fn(identity.NewRepo(tx), a.tokens.WithDB(tx))
+	})
+}
+
 // Service reúne as dependências dos fluxos de autenticação.
 type Service struct {
-	pool   *pgxpoolAdapter
-	users  *identity.Repo
-	tokens *authtoken.Service
+	store  Store
+	tokens Tokens
+	atomic Atomic
 	hasher Hasher
 	policy pwpolicy.Policy
 	mailer Mailer
@@ -45,9 +86,9 @@ type Service struct {
 
 // Deps são as dependências injetadas.
 type Deps struct {
-	Pool   postgres.Beginner
-	Users  *identity.Repo
-	Tokens *authtoken.Service
+	Store  Store
+	Tokens Tokens
+	Atomic Atomic
 	Hasher Hasher
 	Policy pwpolicy.Policy
 	Mailer Mailer
@@ -56,7 +97,7 @@ type Deps struct {
 
 // New cria o serviço e pré-computa o hash fictício do login.
 func New(d Deps) (*Service, error) {
-	if d.Pool == nil || d.Users == nil || d.Tokens == nil || d.Hasher == nil || d.Mailer == nil {
+	if d.Store == nil || d.Tokens == nil || d.Atomic == nil || d.Hasher == nil || d.Mailer == nil {
 		return nil, errors.New("authflow: dependências obrigatórias ausentes")
 	}
 	log := d.Log
@@ -73,7 +114,7 @@ func New(d Deps) (*Service, error) {
 		return nil, err
 	}
 	return &Service{
-		pool: &pgxpoolAdapter{d.Pool}, users: d.Users, tokens: d.Tokens,
+		store: d.Store, tokens: d.Tokens, atomic: d.Atomic,
 		hasher: d.Hasher, policy: d.Policy, mailer: d.Mailer, log: log, dummyHash: dummy,
 	}, nil
 }
@@ -98,8 +139,8 @@ func (s *Service) Register(ctx context.Context, rawEmail, rawPassword string) er
 
 	var newUserID uuid.UUID
 	var existing bool
-	err = s.pool.tx(ctx, func(_ pgx.Tx, r *identity.Repo) error {
-		u, err := r.CreateUser(ctx, email, "", false)
+	err = s.atomic.Do(ctx, func(st Store, _ Tokens) error {
+		u, err := st.CreateUser(ctx, email, "", false)
 		if errors.Is(err, identity.ErrEmailTaken) {
 			existing = true
 			return nil
@@ -108,7 +149,7 @@ func (s *Service) Register(ctx context.Context, rawEmail, rawPassword string) er
 			return err
 		}
 		newUserID = u.ID
-		return r.SetPassword(ctx, u.ID, phc)
+		return st.SetPassword(ctx, u.ID, phc)
 	})
 	if err != nil {
 		return err
@@ -137,18 +178,19 @@ func (s *Service) issueAndSendVerification(ctx context.Context, userID uuid.UUID
 
 // VerifyEmail consome o token e marca o e-mail como verificado.
 func (s *Service) VerifyEmail(ctx context.Context, token string) error {
-	return s.pool.tx(ctx, func(tx pgx.Tx, r *identity.Repo) error {
-		userID, err := s.tokens.WithDB(tx).Consume(ctx, token, authtoken.PurposeEmailVerification)
+	return s.atomic.Do(ctx, func(st Store, tk Tokens) error {
+		userID, err := tk.Consume(ctx, token, authtoken.PurposeEmailVerification)
 		if err != nil {
 			return err
 		}
-		return r.SetEmailVerified(ctx, userID)
+		return st.SetEmailVerified(ctx, userID)
 	})
 }
 
 // Login valida e-mail e senha. Erro único (ErrInvalidCredentials) e tempo
 // igualado por um hash fictício quando o usuário não existe. Devolve o usuário
-// e se a senha precisa ser re-hasheada (o chamador regrava com a senha em mãos).
+// e se a senha precisa ser re-hasheada (o chamador chama Rehash, pois tem a
+// senha em claro em mãos).
 func (s *Service) Login(ctx context.Context, rawEmail, rawPassword string) (identity.User, bool, error) {
 	email, err := identity.NormalizeEmail(rawEmail)
 	if err != nil {
@@ -159,14 +201,14 @@ func (s *Service) Login(ctx context.Context, rawEmail, rawPassword string) (iden
 	}
 	pw := pwpolicy.Normalize(rawPassword)
 
-	u, err := s.users.GetUserByEmail(ctx, email)
+	u, err := s.store.GetUserByEmail(ctx, email)
 	if errors.Is(err, identity.ErrNotFound) {
 		_, _, _ = s.hasher.Verify([]byte(pw), s.dummyHash)
 		return identity.User{}, false, ErrInvalidCredentials
 	} else if err != nil {
 		return identity.User{}, false, err
 	}
-	phc, err := s.users.GetPassword(ctx, u.ID)
+	phc, err := s.store.GetPassword(ctx, u.ID)
 	if errors.Is(err, identity.ErrNoPassword) {
 		_, _, _ = s.hasher.Verify([]byte(pw), s.dummyHash)
 		return identity.User{}, false, ErrInvalidCredentials
@@ -183,6 +225,73 @@ func (s *Service) Login(ctx context.Context, rawEmail, rawPassword string) (iden
 	return u, needsRehash, nil
 }
 
+// VerifyPassword confere a senha de um usuário JÁ identificado (reautenticação
+// antes de ações sensíveis). ErrInvalidCredentials se não conferir.
+func (s *Service) VerifyPassword(ctx context.Context, userID uuid.UUID, rawPassword string) error {
+	pw := pwpolicy.Normalize(rawPassword)
+	phc, err := s.store.GetPassword(ctx, userID)
+	if errors.Is(err, identity.ErrNoPassword) {
+		_, _, _ = s.hasher.Verify([]byte(pw), s.dummyHash)
+		return ErrInvalidCredentials
+	} else if err != nil {
+		return err
+	}
+	ok, _, err := s.hasher.Verify([]byte(pw), phc)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrInvalidCredentials
+	}
+	return nil
+}
+
+// Rehash regrava o hash da senha com os parâmetros atuais. Chamar só depois de
+// uma verificação bem-sucedida que sinalizou needsRehash.
+func (s *Service) Rehash(ctx context.Context, userID uuid.UUID, rawPassword string) error {
+	phc, err := s.hasher.Hash([]byte(pwpolicy.Normalize(rawPassword)))
+	if err != nil {
+		return err
+	}
+	return s.store.SetPassword(ctx, userID, phc)
+}
+
+// ChangePassword troca a senha de um usuário autenticado, exigindo a senha
+// atual. Invalida recuperações pendentes e avisa por e-mail. O chamador deve
+// encerrar as outras sessões.
+func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, current, next string) error {
+	if err := s.VerifyPassword(ctx, userID, current); err != nil {
+		return err
+	}
+	pw := pwpolicy.Normalize(next)
+	if err := s.policy.Validate(ctx, pw); err != nil {
+		return err
+	}
+	phc, err := s.hasher.Hash([]byte(pw))
+	if err != nil {
+		return err
+	}
+	var email string
+	err = s.atomic.Do(ctx, func(st Store, tk Tokens) error {
+		if err := st.SetPassword(ctx, userID, phc); err != nil {
+			return err
+		}
+		if err := tk.InvalidateAll(ctx, userID, authtoken.PurposePasswordRecovery); err != nil {
+			return err
+		}
+		u, err := st.GetUser(ctx, userID)
+		email = u.Email
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if err := s.mailer.SendPasswordChanged(ctx, email); err != nil {
+		s.log.Warn("falha ao avisar troca de senha", slog.Any("erro", err))
+	}
+	return nil
+}
+
 // StartPasswordRecovery sempre devolve nil (anti-enumeração): só envia o e-mail
 // de recuperação se a conta existir.
 func (s *Service) StartPasswordRecovery(ctx context.Context, rawEmail string) error {
@@ -190,7 +299,7 @@ func (s *Service) StartPasswordRecovery(ctx context.Context, rawEmail string) er
 	if err != nil {
 		return nil //nolint:nilerr // anti-enumeração: não revela e-mail inválido
 	}
-	u, err := s.users.GetUserByEmail(ctx, email)
+	u, err := s.store.GetUserByEmail(ctx, email)
 	if errors.Is(err, identity.ErrNotFound) {
 		return nil
 	} else if err != nil {
@@ -219,20 +328,19 @@ func (s *Service) CompletePasswordRecovery(ctx context.Context, token, rawNewPas
 		return uuid.Nil, err
 	}
 	var email string
-	err = s.pool.tx(ctx, func(tx pgx.Tx, r *identity.Repo) error {
-		tk := s.tokens.WithDB(tx)
+	err = s.atomic.Do(ctx, func(st Store, tk Tokens) error {
 		uid, err := tk.Consume(ctx, token, authtoken.PurposePasswordRecovery)
 		if err != nil {
 			return err
 		}
 		userID = uid
-		if err := r.SetPassword(ctx, uid, phc); err != nil {
+		if err := st.SetPassword(ctx, uid, phc); err != nil {
 			return err
 		}
 		if err := tk.InvalidateAll(ctx, uid, authtoken.PurposePasswordRecovery); err != nil {
 			return err
 		}
-		u, err := r.GetUser(ctx, uid)
+		u, err := st.GetUser(ctx, uid)
 		if err != nil {
 			return err
 		}
@@ -246,15 +354,4 @@ func (s *Service) CompletePasswordRecovery(ctx context.Context, token, rawNewPas
 		s.log.Warn("falha ao avisar troca de senha", slog.Any("erro", err))
 	}
 	return userID, nil
-}
-
-// --- adaptadores -----------------------------------------------------------
-
-type pgxpoolAdapter struct{ b postgres.Beginner }
-
-// tx roda fn numa transação e passa a própria Tx e um Repo ligado a ela.
-func (a *pgxpoolAdapter) tx(ctx context.Context, fn func(pgx.Tx, *identity.Repo) error) error {
-	return pgx.BeginTxFunc(ctx, a.b, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		return fn(tx, identity.NewRepo(tx))
-	})
 }

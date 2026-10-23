@@ -145,10 +145,12 @@ func (g *Guard) Fail(ctx context.Context, ip, account string) error {
 	return err
 }
 
-// Success zera os contadores de IP e conta após login bem-sucedido (o global
-// esfria sozinho pela janela, para não mascarar um ataque em curso).
-func (g *Guard) Success(ctx context.Context, ip, account string) error {
-	return g.c.Reset(ctx, ipKey(ip), acctKey(account))
+// Success zera o contador da CONTA após um login bem-sucedido. O contador de IP
+// NÃO é zerado: senão quem tem uma conta própria alternaria logins válidos para
+// zerar o limite e continuar adivinhando senhas de outras contas. O IP e o
+// global esfriam sozinhos pela janela.
+func (g *Guard) Success(ctx context.Context, _, account string) error {
+	return g.c.Reset(ctx, acctKey(account))
 }
 
 const globalKey = "lg:global"

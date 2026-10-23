@@ -80,10 +80,11 @@ func newService(t *testing.T, mailer authflow.Mailer) *authflow.Service {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tokens := authtoken.New(db.App, clk)
 	svc, err := authflow.New(authflow.Deps{
-		Pool:   db.App,
-		Users:  identity.NewRepo(db.App),
-		Tokens: authtoken.New(db.App, clk),
+		Store:  identity.NewRepo(db.App),
+		Tokens: tokens,
+		Atomic: authflow.NewPGAtomic(db.App, tokens),
 		Hasher: h,
 		Policy: pwpolicy.Policy{MinLength: 12}, // sem BreachChecker: offline
 		Mailer: mailer,

@@ -95,7 +95,7 @@ func TestIntegrationGuardWithRedis(t *testing.T) {
 	if err := g.Success(ctx, "1.2.3.4", "conta"); err != nil {
 		t.Fatal(err)
 	}
-	if d, _ := g.Check(ctx, "1.2.3.4", "conta"); d.Challenge || d.Delay != 0 {
+	if d, _ := g.Check(ctx, "9.9.9.9", "conta"); d.Challenge || d.Delay != 0 {
 		t.Fatalf("Success não limpou no Redis: %+v", d)
 	}
 }
