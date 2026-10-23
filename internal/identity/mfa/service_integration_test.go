@@ -11,12 +11,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope"
-	"github.com/zapgateway/zap-gateway/internal/crypto/envelope/envelopetest"
-	"github.com/zapgateway/zap-gateway/internal/identity"
-	"github.com/zapgateway/zap-gateway/internal/identity/mfa"
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres/pgtest"
+	"github.com/Americo509/alo-api/internal/clock"
+	"github.com/Americo509/alo-api/internal/crypto/envelope"
+	"github.com/Americo509/alo-api/internal/crypto/envelope/envelopetest"
+	"github.com/Americo509/alo-api/internal/identity"
+	"github.com/Americo509/alo-api/internal/identity/mfa"
+	"github.com/Americo509/alo-api/internal/storage/postgres/pgtest"
 )
 
 var db *pgtest.DB

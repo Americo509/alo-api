@@ -9,7 +9,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
+	"github.com/Americo509/alo-api/internal/clock"
 )
 
 // Counter é um contador com janela de expiração (Redis em produção, memória em

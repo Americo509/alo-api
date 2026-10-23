@@ -13,10 +13,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/zapgateway/zap-gateway/internal/identity"
-	"github.com/zapgateway/zap-gateway/internal/identity/authtoken"
-	"github.com/zapgateway/zap-gateway/internal/identity/pwpolicy"
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres"
+	"github.com/Americo509/alo-api/internal/identity"
+	"github.com/Americo509/alo-api/internal/identity/authtoken"
+	"github.com/Americo509/alo-api/internal/identity/pwpolicy"
+	"github.com/Americo509/alo-api/internal/storage/postgres"
 )
 
 // ErrInvalidCredentials é o único erro de login: não distingue "usuário não

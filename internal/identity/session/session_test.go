@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
+	"github.com/Americo509/alo-api/internal/clock"
 )
 
 var (

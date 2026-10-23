@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
+	"github.com/Americo509/alo-api/internal/clock"
 )
 
 var (

@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/zapgateway/zap-gateway/internal/identity"
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres/pgtest"
+	"github.com/Americo509/alo-api/internal/identity"
+	"github.com/Americo509/alo-api/internal/storage/postgres/pgtest"
 )
 
 var db *pgtest.DB

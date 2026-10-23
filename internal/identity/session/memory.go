@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
+	"github.com/Americo509/alo-api/internal/clock"
 )
 
 // MemoryBackend é um Backend em memória com expiração pelo relógio injetado.

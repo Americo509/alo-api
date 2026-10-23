@@ -11,10 +11,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/zapgateway/zap-gateway/internal/clock"
-	"github.com/zapgateway/zap-gateway/internal/identity"
-	"github.com/zapgateway/zap-gateway/internal/identity/authtoken"
-	"github.com/zapgateway/zap-gateway/internal/storage/postgres/pgtest"
+	"github.com/Americo509/alo-api/internal/clock"
+	"github.com/Americo509/alo-api/internal/identity"
+	"github.com/Americo509/alo-api/internal/identity/authtoken"
+	"github.com/Americo509/alo-api/internal/storage/postgres/pgtest"
 )
 
 var db *pgtest.DB
