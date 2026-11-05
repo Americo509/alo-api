@@ -22,7 +22,7 @@ services:
       retries: 30
 
   redis:
-    image: redis:7.4.11-alpine
+    image: redis:8.10.3-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports: ["127.0.0.1:${DEV_REDIS_PORT:-16379}:6379"]
     volumes: [redisdata:/data]
